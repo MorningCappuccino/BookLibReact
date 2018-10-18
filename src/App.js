@@ -24,20 +24,54 @@ class App extends React.Component {
     render(){
         return(
             <div className="App">
-                {this.state.books.map((book, index) => {
-                    return (
-                        <div className='book'>
-                            <div>{book.id}</div>
-                            <div>{book.title}</div>
-                            <div>{book.author}</div>
-                            <div>{book.page_count}</div>
-                            <div>{book.year}</div>
-                        </div>
-                    )
-                })}
-                <h1> Hello, World!! </h1>
+                <Menu items={ ['book list', 'add book'] }/>
+                <h3>Book list</h3>
+                <div className="book-list">
+                    {this.state.books.map((book, index) => {
+                        return (
+                            <div className='book' key={index}>
+                                <div>{book.id}</div>
+                                <div>{book.title}</div>
+                                <div>{book.author}</div>
+                                <div>{book.page_count}</div>
+                                <div>{book.year}</div>
+                            </div>
+                        )
+                    })}
+                </div>
             </div>
         );
+    }
+}
+
+class Menu extends React.Component {
+    constructor(props) {
+        super(props);
+        this.state = {
+            active: 0
+        };
+
+        this.handleClick = this.handleClick.bind(this);
+    }
+
+    handleClick(e) {
+        this.setState({active: +e.target.getAttribute('m-index')})
+    }
+
+    render() {
+        return(
+            <ul className="menu">
+                {this.props.items.map((item, i) => {
+                    let style = '';
+
+                    if (this.state.active === i) {
+                        style = 'active';
+                    }
+
+                    return <li key={i} className={style} onClick={this.handleClick} m-index={i}>{item}</li>
+                })}
+            </ul>
+        )
     }
 }
 
