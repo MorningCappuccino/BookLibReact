@@ -10,10 +10,20 @@ class App extends React.Component {
         super();
         this.state = {
             'books': [],
-            activeMenuItem: 1
+            editedBook: {},
+            activeMenuItem: 0,
+            renderSuccessMessage: false,
+            renderEditModal: false,
+            renderOverlay: false
         };
 
         this.handleMenuItemClick = this.handleMenuItemClick.bind(this);
+        this.addBook = this.addBook.bind(this);
+        this.showEditModal = this.showEditModal.bind(this);
+        this.handleEditBook = this.handleEditBook.bind(this);
+        this.handleSuccessMessageUnmount = this.handleSuccessMessageUnmount.bind(this);
+        this.handleCloseModal = this.handleCloseModal.bind(this);
+        this.handleDeleteBook = this.handleDeleteBook.bind(this);
     }
 
     componentDidMount() {
@@ -27,7 +37,70 @@ class App extends React.Component {
     }
 
     handleMenuItemClick(e) {
-        this.setState({activeMenuItem: +e.target.getAttribute('m-index')})
+        this.setState({activeMenuItem: +e.target.getAttribute('m-index')});
+        this.setState({renderSuccessMessage: false});
+    }
+
+    handleSuccessMessageUnmount() {
+        this.setState({renderSuccessMessage: true});
+    }
+
+    addBook(e) {
+        e.preventDefault();
+
+        let form = e.target.parentNode;
+        const self = this;
+
+        axios.post('http://localhost:3000/book', serialize(form))
+            .then(results => {
+                if (results.data.status === 'success') {
+                    self.handleSuccessMessageUnmount();
+                    self.setState(prevState => ({
+                        books: [...prevState.books, results.data.book]
+                    }))
+                }
+            });
+    }
+
+    showEditModal(e) {
+        let editedBook = e.target.getAttribute('edited-book');
+
+        this.setState({editedBook: JSON.parse(editedBook)});
+        this.setState({renderEditModal: true});
+        this.setState({renderOverlay: true});
+    }
+
+    handleEditBook(e) {
+        e.preventDefault();
+
+        let form = e.target.parentNode;
+        let bookID = +e.target.getAttribute('book-id');
+
+        let self = this;
+
+        axios.patch('http://localhost:3000/book/' + bookID, serialize(form))
+            .then(results => {
+                self.setState(prevState => ({
+                    books: results.data.data
+                }));
+                self.handleCloseModal();
+            });
+    }
+
+    handleDeleteBook(e) {
+        let bookID = e.target.getAttribute('book-id');
+
+        let self = this;
+
+        axios.delete('http://localhost:3000/book/' + bookID, serialize({id: bookID}))
+            .then(results => {
+                self.setState({books: results.data.data})
+            });
+    }
+
+    handleCloseModal() {
+        this.setState({renderEditModal: false});
+        this.setState({renderOverlay: false});
     }
 
     render() {
@@ -36,9 +109,12 @@ class App extends React.Component {
         if (this.state.activeMenuItem === 0) {
             console.log('render');
             // this.getBooks();
-            layout =  <BookList books={this.state.books}/>
+            layout =  <BookList books={this.state.books}
+                                showEditModal={this.showEditModal}
+                                deleteBook={this.handleDeleteBook}
+            />
         } else {
-            layout =  <BookAdd />
+            layout =  <BookAdd handleAddBook={this.addBook}/>
         }
 
         return(
@@ -47,7 +123,13 @@ class App extends React.Component {
                       active={this.state.activeMenuItem}
                       handleClick={this.handleMenuItemClick}
                 />
-
+                {this.state.renderSuccessMessage ? <SuccessMessage /> : null}
+                {this.state.renderOverlay ? <RenderOverlay /> : null}
+                {this.state.renderEditModal ? <EditModal
+                    data={this.state.editedBook}
+                    handleEditBook={this.handleEditBook}
+                    closeModal={this.handleCloseModal}
+                 /> : null}
                 {layout}
             </div>
         );
@@ -82,7 +164,7 @@ class BookList extends React.Component {
         }
 
         return(
-            <div>
+            <div className="books">
                 <h3>Book list</h3>
                 <div className="book-list">
                         {this.props.books.map((book, index) => {
@@ -93,6 +175,14 @@ class BookList extends React.Component {
                                     <div>{book.author}</div>
                                     <div>{book.page_count}</div>
                                     <div>{book.year}</div>
+                                    <button edited-book={JSON.stringify(book)}
+                                            onClick={this.props.showEditModal}>
+                                        edit
+                                    </button>
+                                    <button book-id={book.id}
+                                            onClick={this.props.deleteBook}>
+                                        delete
+                                    </button>
                                 </div>
                             )
                         })}
@@ -103,45 +193,16 @@ class BookList extends React.Component {
 }
 
 class BookAdd extends React.Component {
-    constructor(props) {
-        super(props);
-        this.state = {
-            renderSuccessMessage: false
-        };
-
-        this.addBook = this.addBook.bind(this);
-        this.handleSuccessMessageUnmount = this.handleSuccessMessageUnmount.bind(this);
-    }
-
-    handleSuccessMessageUnmount() {
-        this.setState({renderSuccessMessage: true});
-    }
-
-    addBook(e) {
-        e.preventDefault();
-
-        let form = e.target.parentNode;
-        const self = this;
-
-        axios.post('http://localhost:3000/book', serialize(form))
-            .then(results => {
-                if (results.data === 'success') {
-                    self.handleSuccessMessageUnmount();
-                }
-            });
-    }
-
     render() {
         return(
             <div>
-                {this.state.renderSuccessMessage ? <SuccessMessage /> : null}
                 <h3>Add book</h3>
                 <form>
                     <input type="text" name="title" placeholder="title" required />
                     <input type="text" name="author" placeholder="author" />
                     <input type="text" name="page_count" placeholder="page_count" />
                     <input type="text" name="year" placeholder="year" />
-                    <input type="submit" onClick={this.addBook} />
+                    <input type="submit" onClick={this.props.handleAddBook} />
                 </form>
             </div>
         )
@@ -156,6 +217,30 @@ class SuccessMessage extends React.Component {
         )
     }
 
+}
+
+function EditModal(props) {
+    return (
+        <div className="modal">
+            <div className="modal-close" onClick={props.closeModal}>&#10060;</div>
+            <h3>Edit book</h3>
+            <form>
+                <input type="text" name="title" placeholder="title" defaultValue={props.data.title} required />
+                <input type="text" name="author" placeholder="author" defaultValue={props.data.author} />
+                <input type="text" name="page_count" placeholder="page_count" defaultValue={props.data.page_count} />
+                <input type="text" name="year" placeholder="year" defaultValue={props.data.year} />
+                <input type="submit" book-id={props.data.id} onClick={props.handleEditBook} />
+            </form>
+        </div>
+    )
+}
+
+function RenderOverlay() {
+    return (
+        <div className="overlay">
+
+        </div>
+    )
 }
 
 export default hot(module)(App);

@@ -31,3 +31,38 @@
 .menu li.active {
     border: 2px solid #5792f9;
 }
+
+/* Modal */
+.modal {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 100%;
+    max-width: 300px;
+    background: #ffffff;
+    padding: 30px;
+}
+
+.modal input {
+    display: block;
+    margin-bottom: 10px;
+    width: 100%;
+}
+
+.modal-close {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    cursor: pointer;
+}
+
+/* Overlay */
+.overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,.5);
+}
